@@ -1,0 +1,4 @@
+boto3
+botocore
+python-jose
+simplejson>2.1

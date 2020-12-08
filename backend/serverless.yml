@@ -1,0 +1,150 @@
+service: serverless-web-app
+
+package:
+  exclude:
+    - virtual-environment/**
+    - README.md
+    - scripts/**
+    - .vscode/**
+    - node_modules/**
+    - tests/**
+
+# you can overwrite defaults here
+#  stage: dev
+#  region: us-east-1
+plugins:
+  - serverless-python-requirements
+  - serverless-finch
+custom:
+  client:
+    bucketName: ${self:service}-frontend-${self:provider.stage}
+    distributionFolder: ../frontend/build
+    errorDocument: index.html
+  pythonRequirements:
+      dockerizePip: false
+      noDeploy: []
+  ROOM_TABLE_NAME: '${self:service}-ROOMS-${self:provider.stage}'
+  CONNECTION_TABLE_NAME: '${self:service}-CONNECTIONS-${self:provider.stage}'
+
+provider:
+  name: aws  
+  environment:
+    ROOM_TABLE_NAME: ${self:custom.ROOM_TABLE_NAME}
+    CONNECTION_TABLE_NAME: ${self:custom.CONNECTION_TABLE_NAME}
+
+  websocketApiName: serverless-websocket
+  websocketApiRouteSelectionExpression: $request.body.action
+
+  # Enable Rest API logs in API Gateway
+  logs:
+    restApi: true
+
+  # Create aws role for lambda functions
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - "execute-api:ManageConnections"
+      Resource:
+        - "arn:aws:execute-api:*:*:**/@connections/*"
+    - Effect: Allow
+      Action:
+        - lambda:InvokeFunction
+        - lambda:InvokeAsync
+      Resource: "*"
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource: 
+        - "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.CONNECTION_TABLE_NAME}"
+        - "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.ROOM_TABLE_NAME}"
+functions:  
+  # Web Socket Handlers
+  connectionHandler:
+    runtime: python3.7
+    handler: src.handlers.ConnectionHandler.connection_manager_api
+    events:
+      - websocket:
+          route: $connect
+          cors: true
+      - websocket:
+          route: $disconnect
+          cors: true
+  connectToRoomActionHandler:
+    runtime: python3.7
+    handler: src.handlers.ConnectionHandler.connect_to_room_hanlder
+    events:
+      - websocket: 
+          route: connecttoroom
+          cors: true
+  broadcastMessageActionHandler:
+    runtime: python3.7
+    handler: src.handlers.ConnectionHandler.broadcast_message_hanlder
+    events:
+      - websocket: 
+          route: broadcastmessage
+          cors: true
+  defaultHandler:
+    runtime: python3.7
+    handler: src.handlers.ConnectionHandler.echo_api
+    events:
+      - websocket: 
+          route: $default #simple event definition without extra route property
+          cors: true
+
+  # HTTP Handlers          
+  createRoom:
+    runtime: python3.7
+    handler: src.handlers.RoomHandler.create_room_api
+    events:
+      - http:
+          method: post
+          path: createroom
+          cors: true  
+  getMessages: 
+    runtime: python3.7
+    handler: src.handlers.RoomHandler.get_room_messages_api
+    events:
+      - http:
+          method: get
+          path: getmessages/{roomid}
+          cors: true
+    
+resources:
+  Resources:
+    ConnectionTable:
+      Type: 'AWS::DynamoDB::Table'
+      # DeletionPolicy: Retain
+      Properties:
+        TableName: ${self:custom.CONNECTION_TABLE_NAME}
+        AttributeDefinitions:
+          -
+            AttributeName: id
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    MessageTable:
+      Type: 'AWS::DynamoDB::Table'
+      # DeletionPolicy: Retain
+      Properties:
+        TableName: ${self:custom.ROOM_TABLE_NAME}
+        AttributeDefinitions:
+          -
+            AttributeName: id
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
