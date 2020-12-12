@@ -7,6 +7,7 @@ import { saveRouteHistory } from './redux/actions/AppAction';
 
 import Home from "./pages/Home";
 import Room from "./pages/Room";
+import Test from "./pages/Test";
 import './css/App.scss';
 
 const customHistory = createBrowserHistory();
@@ -24,6 +25,9 @@ class App extends React.Component {
             <Switch>
               <Route path="/room/:roomId">
                 <Room></Room>
+              </Route>
+              <Route path="/test">
+                <Test></Test>
               </Route>
               <Route exact path="/">
                 <Home></Home>
