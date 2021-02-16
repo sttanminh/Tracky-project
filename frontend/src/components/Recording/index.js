@@ -9,23 +9,33 @@ class Recording extends React.Component {
         id: "M"+Math.floor(Math.random() * 10000) ,
         willPlay : false
     }
-    componentDidMount() {
+
+    loadWave(songUrl){
         
+        if(!!this.waveform){
+            this.waveform.destroy();
+        }
 
         this.waveform = WaveSurfer.create({
-        container: '#' +this.state.id,
-
+            container: '#' +this.state.id,
         });
-        this.waveform.load(this.props.url);
+        this.waveform.load(songUrl);
 
         this.waveform.on('finish',  () => {
             this.setState({
                 playing: false
             });
         });
+    }
+
+    componentDidMount() {
+        this.loadWave(this.props.url);
     };
     componentDidUpdate(prevProps,prevState)
     {
+        if(prevProps.url !== this.props.url){
+            this.loadWave(this.props.url);
+        }
         if (this.props.willPlayChild === true){
             this.handlePlay()
         }

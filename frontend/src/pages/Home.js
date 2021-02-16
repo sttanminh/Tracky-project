@@ -171,14 +171,15 @@ class Home extends React.Component {
 
                 <button onClick={()=>{
                   console.log(this.state.records.length )
-                  for (let i = 0; i <= this.state.records.length ; i++)
+                  for (let i = 0; i < this.state.records.length ; i++)
                   {
+                    
+                    console.log(i)
                     console.log('masdasdaasdadsadasdasd')
                     console.log(this.state.records[i].url,record.url)
-                    if(this.state.records[i].url == record.url)
+                    if(this.state.records[i].url === record.url)
                     {
                       let newRecordList = this.state.records
-                      console.log(i)
                       newRecordList.splice(i,1)
                       this.setState({
                         records: newRecordList
